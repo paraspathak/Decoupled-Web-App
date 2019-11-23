@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+        CSE 3330 Web App
+    </title>
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <link href='https://fonts.googleapis.com/css?family=Brawler' rel='stylesheet'>
+    <link href='https://fonts.googleapis.com/css?family=Spectral' rel='stylesheet'>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.20/css/jquery.dataTables.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.css" />
+    <script type="text/javascript" charset="utf8"
+        src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.js"></script>
+    <style>
+        .menu {
+            background-color: #f8f8ff;
+            width: 200px;
+            height: 200px;
+            border: 5px solid black;
+            padding: 50px;
+            margin: 20px;
+        }
+
+        .center-app {
+            min-width: 100vh;
+            min-height: 100vh;
+            align-content: center;
+            align-self: center;
+        }
+
+        .menu {
+            align-content: center;
+
+            padding-top: 50px;
+        }
+
+        .absolutepos {
+            width: 400px;
+            height: 800px;
+
+            position: absolute;
+            /*it can be fixed too*/
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            margin: auto;
+
+            /*this to solve "the content will not be cut when the window is smaller than the content": */
+            max-width: 100%;
+            max-height: 100%;
+            overflow: auto;
+        }
+
+        .top-part {
+            position: absolute;
+            min-width: 100vh;
+            left: 0;
+            right: 0;
+            top: 100px;
+        }
+    </style>
+
+</head>
+
+<body bgcolor="whitesmoke">
+    <h1>
+        <div align="center" style="width: 100%; font-family: 'Brawler'; font-size: 22px; color: #2d96ad;">
+            Database System
+        </div>
+    </h1>
+    <br>
+    <div id="center-app">
+        <div id="main-page" align="center">
+            <table id="newitem">
+                <tr align="center">
+                    <td onclick="change_view(1)">
+                        <div class="menu">
+                            <br><br><br><br>Add a Customer
+                        </div>
+                    </td>
+                    <td onclick="change_view(2)">
+                        <div class="menu">
+                            <br><br><br><br>Add a Vehicle
+                        </div>
+
+                    </td>
+                    <td onclick="change_view(3)">
+                        <div class="menu">
+                            <br><br><br><br>Reserve a Vehicle
+                        </div>
+                    </td>
+                </tr>
+                <tr align="center">
+                    <td onclick="change_view(4)">
+                        <div class="menu">
+                            <br><br><br><br>Return a Vehicle
+                        </div>
+                    </td>
+                    <td onclick="change_view(5)">
+                        <div class="menu">
+                            <br><br><br><br>View Balance
+                        </div>
+
+                    </td>
+                    <td onclick="change_view(6)">
+                        <div class="menu">
+                            <br><br><br><br>View Rate
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div id="addcustomer" align="center" class="absolutepos" style="visibility: hidden;">
+            <div class="content" align="center">
+                <button onclick="back_button(1)">
+                    Back
+                </button>
+                <br><br>
+                Please enter information about a Customer!
+                <br><br>
+                <form>
+                    <label for="name">Enter your name: * </label>
+                    <input type="text" name="name_customer" id="name_customer" required>
+                    <br><br>
+                    <label for="phone">Enter your phone: </label>
+                    <input type="number" name="phone_customer" id="phone_customer">
+                    <br><br>
+                </form>
+                <button onclick="add_customer()">
+                    Submit
+                </button>
+            </div>
+        </div>
+        <div id="addvehicle" align="center" class="absolutepos" style="visibility: hidden;">
+            <div class="content" align="center">
+                Please enter information about a Vehicle!
+                <button onclick="back_button(2)">
+                    Back
+                </button>
+                <form>
+                    <br><br>
+                    <label for="vin"> Enter vehicle id (VIN): </label>
+                    <input type="text" name="vehicle_vin" id="vehicle_vin" required>
+                    <br><br>
+                    <label for="desc"> Enter vehicle description: </label>
+                    <input type="text" name="vehicle_description" id="vehicle_description" required>
+                    <br><br>
+                    <label for="year"> Enter vehicle year: </label>
+                    <input type="number" name="vehicle_year" id="vehicle_year" required min="1900" max="2020">
+                    <br><br>
+                    <label for="type"> Enter vehicle type: </label>
+                    <select id="vehicle_type">
+                        <option value="1"> Compact </option>
+                        <option value="2"> Medium </option>
+                        <option value="3"> Large </option>
+                        <option value="4"> SUV </option>
+                        <option value="5"> Truck </option>
+                    </select>
+                    <br><br>
+                    <label for="cat"> Enter vehicle category: </label>
+                    <select id="vehicle_category">
+                        <option value="0"> Regular </option>
+                        <option value="1"> Luxury </option>
+                    </select>
+                    <br><br>
+                </form>
+                <button onclick="add_vehicle()">
+                    Submit
+                </button>
+            </div>
+        </div>
+        <div id="reservation" align="center" class="top-part" style="visibility: hidden;">
+            <div class="content" align="center" class="absolutepos">
+                <button onclick="back_button(3)">
+                    Back
+                </button>
+                <br><br>
+                Please enter information about a Reservation!
+                <br><br>
+                <form>
+                    <label>Please enter your name</label>
+                    <input type="text" id="reserve_name">
+                    <br><br>
+                    <label>Please select starting date: </label>
+                    <input type="date" id="reserve_start">
+                    <br><br>
+                    <label>Please select ending date: </label>
+                    <input type="date" id="reserve_end">
+                    <br><br>
+                    <label for="type"> Enter vehicle type: </label>
+                    <select id="rental_type">
+                        <option value="1"> Compact </option>
+                        <option value="2"> Medium </option>
+                        <option value="3"> Large </option>
+                        <option value="4"> SUV </option>
+                        <option value="5"> Truck </option>
+                    </select>
+                    <br><br>
+                    <label for="cat"> Enter vehicle category: </label>
+                    <select id="rental_category">
+                        <option value="0"> Regular </option>
+                        <option value="1"> Luxury </option>
+                    </select>
+                    <br><br>
+                </form>
+                <button onclick="fetch_cars()">
+                    Submit
+                </button>
+            </div>
+            <div id="table" style="max-width: 80vh;">
+                <table id="reservation_table">
+
+                </table>
+            </div>
+            <div id="fade" class="modal">
+                <p>Do you want to pay now or later?</p>
+                <a href="javascript:reserve_car(0)">Pay Later</a>
+                <a href="javascript:reserve_car(1)">Pay Now</a>
+                <!-- <a href="#" rel="modal:close">Close</a> -->
+            </div>
+        </div>
+        <div id="returncar" align="center" class="top-part" style="visibility: hidden;">
+            <div class="content" class="absolutepos" align="center">
+                <button onclick="back_button(4)">Back </button>
+                <br><br>
+                Please enter information about a Return Car!
+                <br><br>
+                <form>
+                    <label>Customer Name</label>
+                    <input type="text" id="return_name">
+                    <br><br>
+                    <label>Return Date</label>
+                    <input type="date" id="return_returndate">
+                    <br><br>
+                    <label>Vehicle information</label>
+                    <input type="text" id="return_vehicledesc">
+                </form>
+                <br><br>
+                <button onclick="get_return_car()">Submit</button>
+            </div>
+            <div id="table" style="max-width: 80vh;">
+                <table id="return_table">
+
+                </table>
+            </div>
+            <div id="return_modal" class="modal">
+                <p id="add_return_data"></p>
+                <!-- <a href="#" rel="modal:close">Close</a> -->
+            </div>
+        </div>
+        <div id="viewresult" align="center" class="top-part" style="visibility: hidden;">
+            <div class="content" align="center" class="absolutepos">
+                Please enter information about a Customer!
+                <button onclick="back_button(5)">
+                    Back
+                </button>
+                <br><br>
+                <form>
+                    <label>Enter user id</label>
+                    <input type="number" id="view_userid">
+                    <br><br>
+                    <label>Enter user name</label>
+                    <input type="text" id="view_username">
+                    <br><br>
+                </form>
+                <br><br>
+                <button onclick="view_results()">Submit</button>
+                <br><br>
+                <div id="table" style="max-width: 80vh;">
+                    <table id="userview_table">
+
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div id="viewresult2" align="center" class="top-part"  style="visibility: hidden;">
+            <div class="content" align="center" class="absolutepos">
+                Please enter information about a Vehicle!
+                <button onclick="back_button(6)">
+                    Back
+                </button>
+                <br><br>
+                <form>
+                    <label>Enter vehicle VIN</label>
+                    <input type="text" id="view_vehichleid">
+                    <br><br>
+                    <label>Enter Vehicle Description</label>
+                    <input type="text" id="view_vehicledesc">
+                    <br><br>
+                </form>
+                <br><br>
+                <button onclick="view_vehicle_function()">Submit</button>
+                <br><br>
+                <div id="table" style="max-width: 80vh;">
+                    <table id="vehicleview_table">
+
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <script src="{{ url_for('static', filename = 'main.js')}}"></script>
+</body>
+
+</html>
