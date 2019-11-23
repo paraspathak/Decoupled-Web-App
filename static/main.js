@@ -92,10 +92,10 @@ function reserve_car(params) {
     var data = element_to_add_for_reservation.pop();
     make_ajax_call("/addreservation", function (server) {
         //Successfully added records in the database
-        if(server["success"] == 1){
+        if (server["success"] == 1) {
             alert("Added a record in the database");
             back_button(3);
-        }else{
+        } else {
             alert(server["msg"]);
         }
     }, {
@@ -105,7 +105,7 @@ function reserve_car(params) {
         "cat": data["cat"],
         "daily": data["daily"],
         "weekly": data["weekly"],
-        "total":data["total"],
+        "total": data["total"],
         "user_name": data["user_name"],
         "start": data["start"],
         "end": data["end"],
@@ -163,8 +163,8 @@ function fetch_cars() {
                 "cat": data[3],
                 "daily": data[4],
                 "weekly": data[5],
-                "total" : data[6],
-                "start" : start,
+                "total": data[6],
+                "start": start,
                 "end": end,
                 "user_name": name
             });
@@ -194,12 +194,12 @@ function get_return_car() {
     make_ajax_call("/getreturncar", function (param) {
         //Populate all the tables
         console.log("Fetched all return value from db");
-        if (param == "noentry") {
-            alert("There's no rental record with that name, date and description. Try again");
+        if (param["success"] == 0) {
+            alert(param["msg"]);
             return;
         }
         table_return = $("#return_table").DataTable({
-            data: param,
+            data: param["data"],
             "bDestroy": true,
             "columnDefs": [{
                 "targets": -1,
@@ -214,7 +214,8 @@ function get_return_car() {
                 { title: "Start Date" },
                 { title: "Return Date" },
                 // {title:"Type"},
-                { title: "Total Amount" }
+                { title: "Total Amount" },
+                { title: "Pay" }
             ]
         });
         $('#return_table tbody').on('click', 'button', function () {
@@ -235,12 +236,12 @@ function get_return_car() {
                     document.getElementById("add_return_data").innerHTML = `
                     Person Name: `+ row["name"] + `
                     , Description: `+ row["desc"] + `
-                    , Year`+ row["year"] + `
-                    , Order Date`+ row["order"] + `
-                    , Start Date`+ row["start"] + `
-                    , Return Date`+ row["return"] + `
-                    , Total Amount`+ row["total"] + `
-                    ===> has been paid`;
+                    , Year: `+ row["year"] + `
+                    , Order Date: `+ row["order"] + `
+                    , Start Date: `+ row["start"] + `
+                    , Return Date: `+ row["return"] + `
+                    , Total Amount: `+ row["total"] + `
+                      ===> has been paid`;
                     $("#return_modal").modal({
                         fadeDuration: 100
                     });

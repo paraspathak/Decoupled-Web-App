@@ -37,7 +37,7 @@ def add_customer():
         cursor.close()
     return json.dumps(result)
 
-
+# seems to be working
 @app.route('/addvehicle', methods=['POST'])
 def addvehicle():
     data = json.loads(request.get_data().decode('utf8'))
@@ -65,10 +65,10 @@ def addvehicle():
     # Return the row here
     return json.dumps(result)
 
-
+# seems to be working
 @app.route("/addreservation", methods=['POST'])
 def add_reservation():
-    def query_db(query, error, to_commit = False):
+    def query_db(query, error, to_commit=False):
         result = []
         cnx = MYSQL.connect(
             user='root', password='trial123456', database='carrental2019')
@@ -78,7 +78,7 @@ def add_reservation():
             if to_commit:
                 cnx.commit()
                 result.append("success")
-                print(query,"committed result")
+                print(query, "committed result")
             else:
                 result = cursor.fetchall()
             if len(result) == 0:
@@ -88,6 +88,7 @@ def add_reservation():
                 })
             return 1, result
         except MYSQL.Error as identifier:
+            print("Error", identifier.msg)
             return 0, json.dumps({
                 'success': 1,
                 'msg': identifier.msg
@@ -130,34 +131,35 @@ def add_reservation():
     no_weeks, no_days = int(time_delta/7), time_delta % 7
     print(no_days, no_weeks)
     if data["paid_for"] == False:
-        paid_for = 'null'
+        paid_for = 'NULL'
     else:
-        paid_for = today_date
+        paid_for = '"'+today_date.strftime('%Y-%m-%d')+'"'
     # now insert into rental
     if no_weeks != 0:
         # first insert weekly rentals
         weekly_end = start_date + datetime.timedelta(days=no_weeks*7)
         success, result = query_db((
             "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate)  "
-            'VALUES ({},"{}","{}","{}",{},{},{},"{}","{}") '
+            'VALUES ({},"{}","{}","{}",{},{},{},{},"{}") '
         ).format(cust_id, vehicle_id, data["start"], today_date, 7, no_weeks, int(data["weekly"])*no_weeks, paid_for, weekly_end),
             "Could not insert for multiple weeks",
-            to_commit= True
-        )
-
-        # now insert no of weeks
-        daily_start = start_date + datetime.timedelta(days=no_weeks*7+1)
-        success, result = query_db((
-            "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate)  "
-            'VALUES ({},"{}","{}","{}",{},{},{},"{}","{}") '
-        ).format(cust_id, vehicle_id, daily_start, today_date, 1, no_days, ((int(data["daily"])*no_days)-1), paid_for, data["end"]),
-            "Could not insert Daily record",
             to_commit=True
         )
+        if no_days != 0:
+            # now insert no of weeks
+            daily_start = start_date + datetime.timedelta(days=no_weeks*7+1)
+            success, result = query_db((
+                "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate)  "
+                'VALUES ({},"{}","{}","{}",{},{},{},{},"{}") '
+            ).format(cust_id, vehicle_id, daily_start, today_date, 1, no_days, ((int(data["daily"])*no_days)-1), paid_for, data["end"]),
+                "Could not insert Daily record",
+                to_commit=True
+            )
     else:
+        # only daily rentals
         success, result = query_db((
             "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate)  "
-            'VALUES ({},"{}","{}","{}",{},{},{},"{}","{}") '
+            'VALUES ({},"{}","{}","{}",{},{},{},{},"{}") '
         ).format(cust_id, vehicle_id, data["start"], today_date, 1, no_days, int(data["total"]), paid_for, data["end"]),
             "Could not insert whole record",
             to_commit=True
@@ -167,7 +169,7 @@ def add_reservation():
         "success": 1
     })
 
-
+# seems to be working
 @app.route("/getreservation", methods=['POST'])
 def get_reservation():
     data = json.loads(request.get_data().decode('utf8'))
@@ -177,7 +179,7 @@ def get_reservation():
         'from vehicle as v, rate as r   '
         'where v.Type = {} and v.Category = {}  '
         'and v.VehicleID not in (select rt.VehicleID from rental as rt where rt.StartDate between "{}" and "{}" or rt.ReturnDate between "{}" and "{}" ) '
-        'and v.Category = r.Category and v.Type = r.Type   '        
+        'and v.Category = r.Category and v.Type = r.Type   '
     )
 
     # TODO: need to finalize if days and weeks must be exact or not!
@@ -193,7 +195,7 @@ def get_reservation():
     result = ""
     try:
         affected_count = cursor.execute(query.format(
-            *calculate_days_week(data["start"], data["end"]), data["type"], data['cat'], data['start'], data['end'], data['start'], data['end']  ))
+            *calculate_days_week(data["start"], data["end"]), data["type"], data['cat'], data['start'], data['end'], data['start'], data['end']))
         print("Affected rows is: ", affected_count)
         result = cursor.fetchall()
     except MYSQL.IntegrityError:
@@ -212,17 +214,63 @@ def get_reservation():
 
 @app.route('/addreturncar', methods=["POST"])
 def add_returncar():
-    sentence = request.get_data().decode('utf8')
-    print(sentence)
+    data = request.get_data().decode('utf8')
+    order_date = ''
+    print('return car: ', data)
     return json.dumps("Success")
 
-
+# seems to be working
 @app.route('/getreturncar', methods=["POST"])
 def get_returncar():
-    sentence = request.get_data().decode('utf8')
-    print(sentence)
+    data = json.loads(request.get_data().decode('utf8'))
+    print(data)
+    cnx = MYSQL.connect(
+        user='root', password='trial123456', database='carrental2019')
+    cursor = cnx.cursor()
+    result = ""
+    try:
+        affected_count = cursor.execute(
+            (
+                'select customer.Name, vehicle.Description, vehicle.Year, rental.OrderDate, rental.StartDate, rental.ReturnDate, rental.TotalAmount   '
+                'from customer, vehicle, rental   '
+                'where customer.CustID = rental.CustID and vehicle.VehicleID = rental.VehicleID  '
+                'and customer.Name like "%{}%" and vehicle.Description like "%{}%" and rental.ReturnDate = "{}" and rental.PaymentDate is null '
+            ).format(
+                data["name"], data["desc"], data["return"]
+            )
+        )
+        print("Affected rows is: ", affected_count)
+        result = cursor.fetchall()
+    except MYSQL.IntegrityError:
+        print("Could not fetch row")
+        result = None
+    finally:
+        cursor.close()
+    if result == None:
+        print("integrity error")
+        return json.dumps({
+            "success": 0,
+            "msg": "No entries were found for that days "
+        })
+    value = []
+    for entry in result:
+        print(entry)
+        order_d, start_d, return_d = entry[3].strftime(
+            '%Y-%m-%d'), entry[4].strftime('%Y-%m-%d'), entry[5].strftime('%Y-%m-%d')
+        value.append([entry[0], entry[1], entry[2],
+                      order_d, start_d, return_d, entry[6]])
     # of the form [name, vehicle description, year, order date, start date, return date, total amount]
-    return json.dumps([["Paras Pathak", "Mazda CX-5", 2019, "08/22/2019", "10/20/2019", "11/01/2019", 999.90]])
+    if len(value) == 0:
+        return json.dumps({
+            "success": 0,
+            "msg": "Entries were found but, no Unpaid records were found please check different names "
+        })
+    print(value)
+    return json.dumps({
+        "success": 1,
+        'data': value
+    }
+    )
 
 
 @app.route('/viewbalance', methods=["POST"])
