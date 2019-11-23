@@ -68,13 +68,19 @@ def addvehicle():
 
 @app.route("/addreservation", methods=['POST'])
 def add_reservation():
-    def query_db(query, error):
+    def query_db(query, error, to_commit = False):
+        result = []
         cnx = MYSQL.connect(
             user='root', password='trial123456', database='carrental2019')
         cursor = cnx.cursor()
         try:
             cursor.execute(query)
-            result = cursor.fetchall()
+            if to_commit:
+                cnx.commit()
+                result.append("success")
+                print(query,"committed result")
+            else:
+                result = cursor.fetchall()
             if len(result) == 0:
                 return -1, json.dumps({
                     'success': 0,
@@ -131,54 +137,30 @@ def add_reservation():
     if no_weeks != 0:
         # first insert weekly rentals
         weekly_end = start_date + datetime.timedelta(days=no_weeks*7)
-        query = (
-            "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate)  "
-            'VALUES ({},"{}","{}","{}",{},{},{},"{}","{}") '
-        )
-        print(
-            "No weeks",
-            (query).format(cust_id, vehicle_id, data["start"], today_date, 7, no_weeks, int(
-                data["weekly"])*no_weeks, paid_for, weekly_end)
-        )
-        print(weekly_end)
         success, result = query_db((
             "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate)  "
             'VALUES ({},"{}","{}","{}",{},{},{},"{}","{}") '
         ).format(cust_id, vehicle_id, data["start"], today_date, 7, no_weeks, int(data["weekly"])*no_weeks, paid_for, weekly_end),
-            "Could not insert for multiple weeks"
+            "Could not insert for multiple weeks",
+            to_commit= True
         )
 
         # now insert no of weeks
         daily_start = start_date + datetime.timedelta(days=no_weeks*7+1)
-        query2 = (
-            "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate)  "
-            'VALUES ({},"{}","{}","{}",{},{},{},"{}","{}") '
-        )
-        print(
-            "Daily",
-            (query2).format(cust_id, vehicle_id, daily_start, today_date, 1,
-                            no_days, ((int(data["daily"])*no_days)-1), paid_for, data["end"])
-        )
         success, result = query_db((
             "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate)  "
             'VALUES ({},"{}","{}","{}",{},{},{},"{}","{}") '
         ).format(cust_id, vehicle_id, daily_start, today_date, 1, no_days, ((int(data["daily"])*no_days)-1), paid_for, data["end"]),
-            "Could not insert Daily record"
+            "Could not insert Daily record",
+            to_commit=True
         )
     else:
-        query = (
-            "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate)  "
-            'VALUES ({},"{}","{}","{}",{},{},{},"{}","{}") '
-        )
-        print(
-            (query).format(cust_id, vehicle_id, data["start"], today_date, 1, no_days, int(
-                data["total"]), paid_for, data["end"])
-        )
         success, result = query_db((
             "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate)  "
             'VALUES ({},"{}","{}","{}",{},{},{},"{}","{}") '
         ).format(cust_id, vehicle_id, data["start"], today_date, 1, no_days, int(data["total"]), paid_for, data["end"]),
-            "Could not insert whole record"
+            "Could not insert whole record",
+            to_commit=True
         )
 
     return json.dumps({
@@ -214,8 +196,6 @@ def get_reservation():
             *calculate_days_week(data["start"], data["end"]), data["type"], data['cat'], data['start'], data['end'], data['start'], data['end']  ))
         print("Affected rows is: ", affected_count)
         result = cursor.fetchall()
-        print(result, query.format(
-            *calculate_days_week(data["start"], data["end"]), data["type"], data['cat'], data['start'], data['end'], data['start'], data['end']  ))
     except MYSQL.IntegrityError:
         print("Could not fetch row")
         result = None
