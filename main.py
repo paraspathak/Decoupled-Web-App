@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, json
 import requests
 import mysql.connector as MYSQL
+import datetime
 
 app = Flask(__name__)
 
@@ -122,7 +123,7 @@ def add_reservation():
         return result
     vehicle_id = (result[0])[0]
     print("Printing result ", result)
-    import datetime
+
     today_date = datetime.datetime.now().date()
     paid_for = today_date
     start_date = datetime.date(*(int(s) for s in data['start'].split('-')))
@@ -184,7 +185,6 @@ def get_reservation():
 
     # TODO: need to finalize if days and weeks must be exact or not!
     def calculate_days_week(start, end):
-        import datetime
         days_diff = (abs((datetime.date(*(int(s) for s in end.split('-')))) -
                          (datetime.date(*(int(s) for s in start.split('-')))))).days
         no_days = (days_diff % 7)
@@ -211,12 +211,35 @@ def get_reservation():
     # description, year, type, category, daily, weekly, totalcost
     return json.dumps(value)
 
-
+# works
 @app.route('/addreturncar', methods=["POST"])
 def add_returncar():
-    data = request.get_data().decode('utf8')
+    data = json.loads(request.get_data().decode('utf8'))
     order_date = ''
     print('return car: ', data)
+    cnx = MYSQL.connect(
+        user='root', password='trial123456', database='carrental2019')
+    cursor = cnx.cursor()
+    try:
+        affected_count = cursor.execute(
+            (
+                'update rental as r  '
+                'set r.PaymentDate = "{}"  '
+                'where r.VehicleID = (select v.VehicleID from vehicle as v where v.Description = "{}" and v.Year = {}) '
+                'and r.CustID = (Select c.CustID from customer as c where c.Name = "{}" LIMIT 1 ) '
+                'and r.OrderDate = "{}" '
+            ).format(
+                datetime.datetime.now().date().strftime('%Y-%m-%d'),
+                data["desc"], data["year"], data["name"], data["order"]
+            )
+        )
+        print("Affected rows is: ", affected_count)
+        cnx.commit()
+    except MYSQL.IntegrityError as er:
+        print("Could not update row", er.msg)
+        return json.dumps("failure")
+    finally:
+        cursor.close()
     return json.dumps("Success")
 
 # seems to be working
@@ -275,10 +298,36 @@ def get_returncar():
 
 @app.route('/viewbalance', methods=["POST"])
 def viewbalance():
-    sentence = request.get_data().decode('utf8')
-    print(sentence)
+    data = json.loads(request.get_data().decode('utf8'))
+    print(data)
+    cnx = MYSQL.connect(
+        user='root', password='trial123456', database='carrental2019')
+    cursor = cnx.cursor()
+    result = []
+    try:
+        affected_count = cursor.execute(
+            (
+                "select c.CustID, c.Name,  coalesce( concat('$',sum(rt.TotalAmount)) ,'$0')  as total_amount  "
+                'from customer as c  left join rental as rt on c.CustID = rt.CustID '
+                'where c.CustID like "%{}%" and c.Name like "%{}%"  '
+                'group by c.CustID  '
+                'order by total_amount desc  '
+            ).format(data["id"], data["name"])
+        )
+        result = cursor.fetchall()
+        print("Affected rows is: ", affected_count, result)
+    except MYSQL.IntegrityError:
+        print("Could not fetch row")
+        return json.dumps([[123, "Paras Pathak", 999.90]])
+    finally:
+        cursor.close()
+
+    val = []
+    for entry in result:
+        val.append([i for i in entry])
     # of the form [USERID, name, balance]
-    return json.dumps([[123, "Paras Pathak", 999.90]])
+    return json.dumps(val)
+    
 
 
 @app.route('/viewrate', methods=["POST"])
