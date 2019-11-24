@@ -247,7 +247,7 @@ function get_return_car() {
                     , Start Date: `+ row["start"] + `
                     , Return Date: `+ row["return"] + `
                     , Total Amount: `+ row["total"] + `
-                      ===> has been paid`;
+                      ===> has been paid and returned`;
                     $("#return_modal").modal({
                         fadeDuration: 100
                     });
