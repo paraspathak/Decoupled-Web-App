@@ -348,7 +348,7 @@ def viewrate():
     try:
         affected_count = cursor.execute(
             (
-                'select v.VehicleID, v.Description,  coalesce(concat("$",cast(avg(r.TotalAmount/(r.Qty*r.RentalType)) as Decimal(10,2))),"$0.00") as avg_rate  '
+                'select v.VehicleID, v.Description,  coalesce(concat("$",cast(avg(r.TotalAmount/(r.Qty*r.RentalType)) as Decimal(10,2))),"Non-Applicable") as avg_rate  '
                 'from vehicle as v left join rental as r on v.VehicleID = r.VehicleID  '
                 'where v.VehicleID like "%{}%" and v.Description like "%{}%"  '
                 'group by v.VehicleID  '

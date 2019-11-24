@@ -300,7 +300,7 @@ function view_vehicle_function() {
         view_vehicle = $("#vehicleview_table").DataTable({
             data: param,
             "bDestroy": true,
-            "order": [[ 2, "desc" ]],
+            "order": [[ 2, "asc" ]],
             columns: [
                 { title: "VIN" },
                 { title: "Description" },
