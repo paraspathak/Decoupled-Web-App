@@ -136,32 +136,36 @@ def add_reservation():
     else:
         paid_for = '"'+today_date.strftime('%Y-%m-%d')+'"'
     # now insert into rental
-    if no_weeks != 0:
+    if no_weeks != 0 and no_days == 0:
         # first insert weekly rentals
         weekly_end = start_date + datetime.timedelta(days=no_weeks*7)
+        print("in only weeks")
         success, result = query_db((
             "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate)  "
             'VALUES ({},"{}","{}","{}",{},{},{},{},"{}") '
-        ).format(cust_id, vehicle_id, data["start"], today_date, 7, no_weeks, int(data["weekly"])*no_weeks, paid_for, weekly_end),
+        ).format(cust_id, vehicle_id, data["start"], today_date, 7, no_weeks, int(data["weekly"])*no_weeks, paid_for, data["end"]),
             "Could not insert for multiple weeks",
             to_commit=True
         )
-        if no_days != 0:
-            # now insert no of weeks
-            daily_start = start_date + datetime.timedelta(days=no_weeks*7+1)
-            success, result = query_db((
-                "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate)  "
-                'VALUES ({},"{}","{}","{}",{},{},{},{},"{}") '
-            ).format(cust_id, vehicle_id, daily_start, today_date, 1, no_days, ((int(data["daily"])*no_days)-1), paid_for, data["end"]),
-                "Could not insert Daily record",
-                to_commit=True
-            )
+        # case to handle if spliting multiple days and weeks into separate entries in the database table
+        # if no_days != 0:
+        #     # now insert no of weeks
+        #     daily_start = start_date + datetime.timedelta(days=no_weeks*7+1)
+        #     success, result = query_db((
+        #         "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate)  "
+        #         'VALUES ({},"{}","{}","{}",{},{},{},{},"{}") '
+        #     ).format(cust_id, vehicle_id, daily_start, today_date, 1, no_days, ((int(data["daily"])*no_days)-1), paid_for, data["end"]),
+        #         "Could not insert Daily record",
+        #         to_commit=True
+        #     )
     else:
-        # only daily rentals
+        # If you have multiple days and weeks, automatically convert the total time to days and then add to the db
+        no_days = time_delta
+        print("in only days")
         success, result = query_db((
             "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate)  "
             'VALUES ({},"{}","{}","{}",{},{},{},{},"{}") '
-        ).format(cust_id, vehicle_id, data["start"], today_date, 1, no_days, int(data["total"]), paid_for, data["end"]),
+        ).format(cust_id, vehicle_id, data["start"], today_date, 1, no_days, int(data["daily"])*no_days, paid_for, data["end"]),
             "Could not insert whole record",
             to_commit=True
         )
@@ -188,7 +192,10 @@ def get_reservation():
         days_diff = (abs((datetime.date(*(int(s) for s in end.split('-')))) -
                          (datetime.date(*(int(s) for s in start.split('-')))))).days
         no_days = (days_diff % 7)
-        return int(no_days), int((days_diff-no_days)/7)
+        if no_days == 0:        #changed here so as to only get days whenever there is weeks and days
+            return int(no_days), int((days_diff-no_days)/7)
+        else:
+            return days_diff, 0
     cnx = MYSQL.connect(
         user='root', password='trial123456', database='carrental2019')
     cursor = cnx.cursor()
@@ -206,6 +213,7 @@ def get_reservation():
     if result == None:
         return json.dumps("noentry")    # return json.dumps("noentry")
     value = []
+    print(result)
     for entry in result:
         value.append([attribute for attribute in entry])
     # description, year, type, category, daily, weekly, totalcost
