@@ -295,7 +295,7 @@ def get_returncar():
     }
     )
 
-
+# works
 @app.route('/viewbalance', methods=["POST"])
 def viewbalance():
     data = json.loads(request.get_data().decode('utf8'))
@@ -307,7 +307,7 @@ def viewbalance():
     try:
         affected_count = cursor.execute(
             (
-                "select c.CustID, c.Name,  coalesce( concat('$',sum(rt.TotalAmount)) ,'$0')  as total_amount  "
+                "select c.CustID, c.Name,  coalesce( concat('$',sum(rt.TotalAmount),'.00') ,'$0.00')  as total_amount  "
                 'from customer as c  left join rental as rt on c.CustID = rt.CustID '
                 'where c.CustID like "%{}%" and c.Name like "%{}%"  '
                 'group by c.CustID  '
@@ -327,27 +327,40 @@ def viewbalance():
         val.append([i for i in entry])
     # of the form [USERID, name, balance]
     return json.dumps(val)
-    
 
-
+#works
 @app.route('/viewrate', methods=["POST"])
 def viewrate():
-    sentence = request.get_data().decode('utf8')
-    print(sentence)
+    data = json.loads(request.get_data().decode('utf8'))
+    print(data)
+    cnx = MYSQL.connect(
+        user='root', password='trial123456', database='carrental2019')
+    cursor = cnx.cursor()
+    result = ""
+    try:
+        affected_count = cursor.execute(
+            (
+                'select v.VehicleID, v.Description,  coalesce(concat("$",cast(avg(r.TotalAmount/(r.Qty*r.RentalType)) as Decimal(10,2))),"$0.00") as avg_rate  '
+                'from vehicle as v left join rental as r on v.VehicleID = r.VehicleID  '
+                'where v.VehicleID like "%{}%" and v.Description like "%{}%"  '
+                'group by v.VehicleID  '
+                'order by avg_rate desc  '
+            ).format(
+                data["vin"], data["desc"]
+            )
+        )
+        print("Affected rows is: ", affected_count)
+        result = cursor.fetchall()
+    except MYSQL.IntegrityError:
+        print("Could not fetch row")
+        result = []
+    finally:
+        cursor.close()
+        val = []
+    for item in result:
+        val.append([i for i in item])
     # of the form [VIN, Description, Daily rate]
-    return json.dumps([["791vh890idalsn5634", "Porsche 911", 999.90]])
-
-
-def index():
-    cur = mysql.connection.cursor()
-    cur.execute('''SELECT * FROM Users WHERE id=1''')
-    row_headers = [x[0]
-                   for x in cur.description]  # this will extract row headers
-    rv = cur.fetchall()
-    json_data = []
-    for result in rv:
-        json_data.append(dict(zip(row_headers, result)))
-    return json.dumps(json_data)
+    return json.dumps(val)
 
 
 if __name__ == "__main__":

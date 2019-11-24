@@ -278,6 +278,7 @@ function view_results() {
         view_user = $("#userview_table").DataTable({
             data: param,
             "bDestroy": true,
+            "order": [[ 2, "desc" ]],
             columns: [
                 { title: "User ID" },
                 { title: "User Name" },
@@ -299,6 +300,7 @@ function view_vehicle_function() {
         view_vehicle = $("#vehicleview_table").DataTable({
             data: param,
             "bDestroy": true,
+            "order": [[ 2, "desc" ]],
             columns: [
                 { title: "VIN" },
                 { title: "Description" },
