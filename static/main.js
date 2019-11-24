@@ -109,6 +109,7 @@ function reserve_car(params) {
         "user_name": data["user_name"],
         "start": data["start"],
         "end": data["end"],
+        "vin":data["vin"],
         "paid_for": is_paid
     }, "POST");
 }
@@ -151,6 +152,7 @@ function fetch_cars() {
                 { title: "Daily Rate" },
                 { title: "Weekly Rate" },
                 { title: "Total Cost" },
+                {title:"VIN"},
                 { title: "Reserve this" }
             ]
         });
@@ -166,7 +168,8 @@ function fetch_cars() {
                 "total": data[6],
                 "start": start,
                 "end": end,
-                "user_name": name
+                "user_name": name,
+                "vin":data[7]
             });
             $("#fade").modal({
                 fadeDuration: 100
@@ -215,7 +218,9 @@ function get_return_car() {
                 { title: "Return Date" },
                 // {title:"Type"},
                 { title: "Total Amount" },
-                { title: "Pay" }
+                {title: "VIN"},
+                { title: "Return and Pay" }
+                
             ]
         });
         $('#return_table tbody').on('click', 'button', function () {
@@ -227,7 +232,8 @@ function get_return_car() {
                 "order": data[3],
                 "start": data[4],
                 "return": data[5],
-                "total": data[6]
+                "total": data[6],
+                "vin":data[7]
             });
             make_ajax_call("/addreturncar", function (param) {
                 if (param == "Success") {
@@ -256,7 +262,8 @@ function get_return_car() {
                 "order": data[3],
                 "start": data[4],
                 "return": data[5],
-                "total": data[6]
+                "total": data[6],
+                "vin":data[7]
             }, "POST");
         });
     }, {

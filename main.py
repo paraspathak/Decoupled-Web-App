@@ -113,15 +113,15 @@ def add_reservation():
     print("Customer id: ", cust_id)
 
     # get the id for vehicle
-    success, result = query_db((
-        "SELECT v.VehicleID FROM Vehicle AS v "
-        'WHERE v.Description = "{}"  and v.Year = "{}" and v.Type = {} and v.Category = {}'
-    ).format(data["name"], data["year"], data["cat"], data["type"]),
-        "There's no vehicle as specified! Something went wrong"
-    )
-    if success != 1:  # theres' an error, notify the front end
-        return result
-    vehicle_id = (result[0])[0]
+    # success, result = query_db((
+    #     "SELECT v.VehicleID FROM Vehicle AS v "
+    #     'WHERE v.Description = "{}"  and v.Year = "{}" and v.Type = {} and v.Category = {}'
+    # ).format(data["name"], data["year"], data["cat"], data["type"]),
+    #     "There's no vehicle as specified! Something went wrong"
+    # )
+    # if success != 1:  # theres' an error, notify the front end
+    #     return result
+    vehicle_id = data["vin"]
     print("Printing result ", result)
 
     today_date = datetime.datetime.now().date()
@@ -141,8 +141,8 @@ def add_reservation():
         weekly_end = start_date + datetime.timedelta(days=no_weeks*7)
         print("in only weeks")
         success, result = query_db((
-            "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate)  "
-            'VALUES ({},"{}","{}","{}",{},{},{},{},"{}") '
+            "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate, Returned)  "
+            'VALUES ({},"{}","{}","{}",{},{},{},{},"{}", 0 ) '
         ).format(cust_id, vehicle_id, data["start"], today_date, 7, no_weeks, int(data["weekly"])*no_weeks, paid_for, data["end"]),
             "Could not insert for multiple weeks",
             to_commit=True
@@ -163,8 +163,8 @@ def add_reservation():
         no_days = time_delta
         print("in only days")
         success, result = query_db((
-            "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate)  "
-            'VALUES ({},"{}","{}","{}",{},{},{},{},"{}") '
+            "INSERT INTO rental (CustID, VehicleID, StartDate, OrderDate, RentalType, Qty, TotalAmount, PaymentDate, ReturnDate, Returned)  "
+            'VALUES ({},"{}","{}","{}",{},{},{},{},"{}", 0) '
         ).format(cust_id, vehicle_id, data["start"], today_date, 1, no_days, int(data["daily"])*no_days, paid_for, data["end"]),
             "Could not insert whole record",
             to_commit=True
@@ -180,7 +180,7 @@ def get_reservation():
     data = json.loads(request.get_data().decode('utf8'))
     print(data)
     query = (
-        'SELECT v.Description, v.Year, v.Category, v.Type, r.Daily , r.Weekly, (r.Daily * {} + r.Weekly * {} ) as total_cost  '
+        'SELECT v.Description, v.Year, v.Category, v.Type, r.Daily , r.Weekly, (r.Daily * {} + r.Weekly * {} ) as total_cost, v.VehicleID  '
         'from vehicle as v, rate as r   '
         'where v.Type = {} and v.Category = {}  '
         'and v.VehicleID not in (select rt.VehicleID from rental as rt where rt.StartDate between "{}" and "{}" or rt.ReturnDate between "{}" and "{}" ) '
@@ -229,20 +229,36 @@ def add_returncar():
         user='root', password='trial123456', database='carrental2019')
     cursor = cnx.cursor()
     try:
-        affected_count = cursor.execute(
-            (
-                'update rental as r  '
-                'set r.PaymentDate = "{}"  '
-                'where r.VehicleID = (select v.VehicleID from vehicle as v where v.Description = "{}" and v.Year = {}) '
-                'and r.CustID = (Select c.CustID from customer as c where c.Name = "{}" LIMIT 1 ) '
-                'and r.OrderDate = "{}" '
-            ).format(
-                datetime.datetime.now().date().strftime('%Y-%m-%d'),
-                data["desc"], data["year"], data["name"], data["order"]
+        if data["total"] == 0:
+            affected_count = cursor.execute(
+                (
+                    'update rental as r  '
+                    'set   r.Returned = 1 ' #r.PaymentDate = "{}" TODO
+                    'where r.VehicleID = "{}" '
+                    'and r.CustID = (Select c.CustID from customer as c where c.Name = "{}" LIMIT 1 ) '
+                    'and r.OrderDate = "{}" '
+                ).format(
+                    #datetime.datetime.now().date().strftime('%Y-%m-%d'),
+                    data["vin"], data["name"], data["order"]
+                )
             )
-        )
-        print("Affected rows is: ", affected_count)
-        cnx.commit()
+            print("Affected rows is: ", affected_count)
+            cnx.commit()
+        else:
+            affected_count = cursor.execute(
+                (
+                    'update rental as r  '
+                    'set r.PaymentDate = "{}", r.Returned = 1 '  
+                    'where r.VehicleID = "{}" '
+                    'and r.CustID = (Select c.CustID from customer as c where c.Name = "{}" LIMIT 1 ) '
+                    'and r.OrderDate = "{}" '
+                ).format(
+                    datetime.datetime.now().date().strftime('%Y-%m-%d'),
+                    data["vin"], data["name"], data["order"]
+                )
+            )
+            print("Affected rows is: ", affected_count)
+            cnx.commit()
     except MYSQL.IntegrityError as er:
         print("Could not update row", er.msg)
         return json.dumps("failure")
@@ -262,10 +278,11 @@ def get_returncar():
     try:
         affected_count = cursor.execute(
             (
-                'select customer.Name, vehicle.Description, vehicle.Year, rental.OrderDate, rental.StartDate, rental.ReturnDate, rental.TotalAmount   '
+                'select customer.Name, vehicle.Description, vehicle.Year, rental.OrderDate, rental.StartDate, rental.ReturnDate,  '
+                'case when rental.PaymentDate is null then rental.TotalAmount  else 0 end  as TotalAmount, vehicle.VehicleID  '
                 'from customer, vehicle, rental   '
                 'where customer.CustID = rental.CustID and vehicle.VehicleID = rental.VehicleID  '
-                'and customer.Name like "%{}%" and vehicle.Description like "%{}%" and rental.ReturnDate = "{}" and rental.PaymentDate is null '
+                'and customer.Name like "%{}%" and vehicle.Description like "%{}%" and rental.ReturnDate = "{}" and rental.Returned = 0 '
             ).format(
                 data["name"], data["desc"], data["return"]
             )
@@ -289,7 +306,7 @@ def get_returncar():
         order_d, start_d, return_d = entry[3].strftime(
             '%Y-%m-%d'), entry[4].strftime('%Y-%m-%d'), entry[5].strftime('%Y-%m-%d')
         value.append([entry[0], entry[1], entry[2],
-                      order_d, start_d, return_d, entry[6]])
+                      order_d, start_d, return_d, entry[6], entry[7]])
     # of the form [name, vehicle description, year, order date, start date, return date, total amount]
     if len(value) == 0:
         return json.dumps({
